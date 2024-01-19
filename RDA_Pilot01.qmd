@@ -5,14 +5,38 @@ format:
   html:
     toc: true
     theme: flatly
+    fontsize: .8em
 ---
 
 ## Import of the already cleaned data
 ```{r}
 library(tidyverse)
+library(GGally)
+
 data_pilot01 <- 
-  read_delim("Data/TextViz.csv", delim = ";")
+  read_delim("Data/TextViz.csv", delim = ";")|> 
+  # compute survey duration
+  mutate(survey_duration = dmy_hm(ended) - dmy_hm(created))
 
 glimpse(data_pilot01)
+skimr::skim(data_pilot01)
 ```
 
+## Participant Behaviour
+### Survey Duration
+```{r}
+data_pilot01  |> 
+  ggplot(aes(survey_duration)) +
+  geom_histogram() +
+  theme_minimal()
+```
+
+## Results of Attention and Comprehension checks
+```{r}
+data_pilot01 |> 
+  select(attention_check_1a, attention_check_1b,
+         check_graph2, check_test, check_text2) |> 
+  skim()
+```
+
+## Data Wrangling Wide to Long
