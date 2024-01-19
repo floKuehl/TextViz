@@ -9,6 +9,7 @@ format:
 ---
 
 ## Import of the already cleaned data
+
 ```{r}
 library(tidyverse)
 library(GGally)
@@ -16,14 +17,31 @@ library(GGally)
 data_pilot01 <- 
   read_delim("Data/TextViz.csv", delim = ";")|> 
   # compute survey duration
-  mutate(survey_duration = dmy_hm(ended) - dmy_hm(created))
+  mutate(survey_duration = dmy_hm(ended) - dmy_hm(created)) |> 
+  # rename true effect sizes
+  mutate(text_effect_size_1 = effect_size_7,
+         text_effect_size_2 = effect_size_8,
+         text_effect_size_3 = effect_size_9,
+         text_effect_size_4 = effect_size_10,
+         text_effect_size_5 = effect_size_11,
+         text_effect_size_6 = effect_size_12,
+         plot_effect_size_1 = effect_size_1,
+         plot_effect_size_2 = effect_size_2,
+         plot_effect_size_3 = effect_size_3,
+         plot_effect_size_4 = effect_size_4,
+         plot_effect_size_5 = effect_size_5,
+         plot_effect_size_6 = effect_size_6) |> 
+  # deselect old true effect size variables
+  select(-starts_with("effect_size_"))
 
 glimpse(data_pilot01)
 skimr::skim(data_pilot01)
 ```
 
 ## Participant Behaviour
+
 ### Survey Duration
+
 ```{r}
 data_pilot01  |> 
   ggplot(aes(survey_duration)) +
@@ -32,6 +50,7 @@ data_pilot01  |>
 ```
 
 ## Results of Attention and Comprehension checks
+
 ```{r}
 data_pilot01 |> 
   select(attention_check_1a, attention_check_1b,
@@ -40,3 +59,57 @@ data_pilot01 |>
 ```
 
 ## Data Wrangling Wide to Long
+
+It is important to know that `effect_size1` to `effect_size6` encode the true effect sizes of the shown plots. `effect_size7` to `effect_size12` encode the true effect sizes of the shown **text**
+
+First we have to wrangle a table like this
+
+| session | stimulus_type | stimulus_number | true_effectsize | first_stim | perceived_diff | perceived_PS | perceived_inf | perceived_rel |
+|--------|--------|--------|--------|--------|--------|--------|--------|--------|
+| a       | plot          | 1               | .8              | plot_first |                |              |               |               |
+| b       | text          | 1               | .2              | text_first |                |              |               |               |
+| c       | plot          | 1               | -.5             | plot_first |                |              |               |               |
+
+The variable `first_stim` is only reconstuctable by the timestamps. So let's wrangle the first four columns:
+
+```{r}
+data_maxlong <- 
+  data_pilot01 |> 
+  select(session,
+         starts_with("plot_"),
+         starts_with("text_")) |> 
+  pivot_longer(cols = -session,
+               names_to = "variable",
+               values_to = "value") |> 
+  mutate(stimulus_type = str_sub(variable, 1, 4),
+         nth_stimulus_per_type = str_sub(variable, -2, -1),
+         nth_stimulus_per_type = case_when(nth_stimulus_per_type == "_1" ~ 1,
+                                           nth_stimulus_per_type == "_2" ~ 2,
+                                           nth_stimulus_per_type == "_3" ~ 3,
+                                           nth_stimulus_per_type == "_4" ~ 4,
+                                           nth_stimulus_per_type == "_5" ~ 5,
+                                           nth_stimulus_per_type == "_6" ~ 6,
+                                           nth_stimulus_per_type == "_7" ~ 7,
+                                           nth_stimulus_per_type == "_8" ~ 8,
+                                           nth_stimulus_per_type == "_9" ~ 9,
+                                           nth_stimulus_per_type == "10" ~ 10,
+                                           nth_stimulus_per_type == "11" ~ 11,
+                                           nth_stimulus_per_type == "12" ~ 12), 
+         measurement = case_when(str_detect(variable, "accuracy") ~ "probability_of_sup",
+                                 str_detect(variable, "effect_size") ~ "effect_size",
+                                 str_detect(variable, "informativity") ~ "informativity",
+                                 str_detect(variable, "relevance") ~ "relevance",
+                                 str_detect(variable, "informativity") ~ "informativity",
+                                 str_detect(variable, "difficulty") ~ "difficulty",
+                                 str_detect(variable, "informativity") ~ "informativity",
+                                 T ~ "Attention: Error in Code"))
+
+data_long <- 
+  data_maxlong |> 
+  select(-variable) |> 
+  pivot_wider(id_cols = c(session, stimulus_type, nth_stimulus_per_type),
+              names_from = measurement,
+              values_from = value) 
+
+skim(data_long)  
+```
