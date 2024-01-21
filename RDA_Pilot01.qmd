@@ -13,6 +13,7 @@ format:
 ```{r}
 library(tidyverse)
 library(GGally)
+library(skimr)
 
 data_pilot01 <- 
   read_delim("Data/TextViz.csv", delim = ";")|> 
@@ -58,11 +59,11 @@ data_pilot01 |>
   skim()
 ```
 
-## Data Wrangling Wide to Long
+## Data Wrangling Wide to Long Format
 
-It is important to know that `effect_size1` to `effect_size6` encode the true effect sizes of the shown plots. `effect_size7` to `effect_size12` encode the true effect sizes of the shown **text**
+It is important to know that `effect_size1` to `effect_size6` encode the true effect sizes of the shown plots. `effect_size7` to `effect_size12` encode the true effect sizes of the shown **text.**
 
-First we have to wrangle a table like this
+First we have to wrangle a table like this:
 
 | session | stimulus_type | stimulus_number | true_effectsize | first_stim | perceived_diff | perceived_PS | perceived_inf | perceived_rel |
 |--------|--------|--------|--------|--------|--------|--------|--------|--------|
@@ -70,7 +71,7 @@ First we have to wrangle a table like this
 | b       | text          | 1               | .2              | text_first |                |              |               |               |
 | c       | plot          | 1               | -.5             | plot_first |                |              |               |               |
 
-The variable `first_stim` is only reconstuctable by the timestamps. So let's wrangle the first four columns:
+The variable `first_stim` is only reconstuctable by the time stamps. So let's wrangle the first four columns:
 
 ```{r}
 data_maxlong <- 
@@ -113,3 +114,37 @@ data_long <-
 
 skim(data_long)  
 ```
+
+## Research Questions
+
+RQ 1: How accurate (dependent variable 1), efficient (dependent variable 2), informative (dependent variable 3) and relevant (dependent variable 4) are graphically and textually presented effect sizes received by teachers?
+
+RQ 2: Are there differences between the display modes (graph vs. text) in relation to the four dependent variables?
+
+## Statistical Analyses
+
+Concerning Research Question 1, part
+
+1:
+
+2:
+
+3: How informative are graphically and textually presented effect sizes?
+```{r}
+
+overall_mean_informativity_plot <- data_maxlong |>  filter(str_detect(variable, "^plot_perceived_informativity_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
+
+overall_mean_informativity_text <- data_maxlong |>  filter(str_detect(variable, "^text_perceived_informativity_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
+
+# Create a data frame with the summary statistics
+
+summary_data <- data.frame( Variable = c("Plot Informativity", "Text Informativity"), Mean_Value = c( overall_mean_informativity_plot$mean_value,  overall_mean_informativity_text$mean_value ) )
+
+# Create a horizontal bar plot with values on the x-axis
+
+ggplot(summary_data, aes(x = Mean_Value, y = Variable, fill = Variable)) + geom_bar(stat = "identity") + labs(title = "Mean Values by Variable and Aspect", x = "Mean Value") + theme_minimal() + theme(axis.text.y = element_text(hjust = 0))
+
+```
+
+
+Concerning Research Question 2
