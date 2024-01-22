@@ -61,7 +61,7 @@ data_pilot01 |>
 
 ## Data Wrangling Wide to Long Format
 
-It is important to know that `effect_size1` to `effect_size6` encode the true effect sizes of the shown plots. `effect_size7` to `effect_size12` encode the true effect sizes of the shown **text.**
+It is important to know that `effect_size1` to `effect_size6` encode the true effect sizes of the shown plots. `effect_size7` to `effect_size12` encode the true effect sizes of the shown **text**.
 
 First we have to wrangle a table like this:
 
@@ -117,19 +117,105 @@ skim(data_long)
 
 ## Research Questions
 
-RQ 1: How accurate (dependent variable 1), efficient (dependent variable 2), informative (dependent variable 3) and relevant (dependent variable 4) are graphically and textually presented effect sizes received by teachers?
+RQ 1: How accurate (dependent variable 1), informative (dependent variable 2), difficult to understand / efficient (dependent variable 3) and relevant (dependent variable 4) are graphically and textually presented effect sizes perceived by teachers?
 
-RQ 2: Are there differences between the display modes (graph vs. text) in relation to the four dependent variables?
+RQ 2: Are there any (significant) differences between the two modes (graph vs. text) in relation to the four dependent variables?
 
 ## Statistical Analyses
 
 Concerning Research Question 1, part
 
-1:
+1: First step: we need to transform the variable \`effect size´, which is computed as Cohen's d values, into the Common Language Effect Size (CLES) Probability of Superiority. Afterward, we can calculate a Pearson's r correlation. We need a table like this:
 
-2:
+| effect_size_true | pos_effect_size_true | probability of superiority (measurement) |
+|------------------|----------------------|------------------------------------------|
+| +- 0.8           | 71.4                 | ...                                      |
+| +- 0.5           | 63.8                 | ...                                      |
+| +- 0.2           | 55.6                 | ...                                      |
 
-3: How informative are graphically and textually presented effect sizes?
+: Correlation between effect_size and probability of superiority
+
+```{r}
+# reminder to myself: AltGr + greater symbol = pipe operator
+# not yet finished, tbd
+
+
+# Optional: Reshape the data back to wide format if necessary
+wide_data <- data_maxlong %>%
+  pivot_wider(
+    names_from = variable.names("plot_accuracy_1"),
+    values_from = value
+  )
+
+
+# Reshape the data to long format
+long_data <- data %>%
+  pivot_longer(
+    cols = starts_with("plot_effect_size_"),
+    names_to = "effect_size_variable",
+    values_to = "effect_size_value"
+  )
+
+# Apply case_when() to the new effect_size_value column
+long_data <- long_data %>%
+  mutate(
+    new_variable = case_when(
+      effect_size_value >= 0.9 | effect_size_value <= -0.9 ~ "ValueFor±0.9",
+      effect_size_value >= 0.5 | effect_size_value <= -0.5 ~ "ValueFor±0.5",
+      effect_size_value >= 0.2 | effect_size_value <= -0.2 ~ "ValueFor±0.2",
+      TRUE ~ "Default"
+    )
+  )
+
+
+
+selected_rows <- data_maxlong |>
+  select(-session,-stimulus_type,-nth_stimulus_per_type,-measurement) |>
+  filter(variable %in% c("plot_accuracy_1", "plot_accuracy_2", "plot_accuracy_3","plot_accuracy_4","plot_accuracy_5","plot_accuracy_6", "plot_effect_size_1", "plot_effect_size_2", "plot_effect_size_3", "plot_effect_size_4", "plot_effect_size_5", "plot_effect_size_6"))
+
+# Create a new column "new_column" based on a condition
+
+love_r <- selected_rows %>%
+  mutate(effect_size = ifelse(variable %in% c("plot_effect_size_1", "plot_effect_size_2", "plot_effect_size_3","plot_effect_size_4", "plot_effect_size_5", "plot_effect_size_6"), value, NA)) |>
+  select(-starts_with("plot_effect_size_"))
+
+
+
+correlation_accuracy <- data_maxlong |>
+  select(starts_with("plot_accuracy_"))
+
+print(correlation_accuracy)
+
+transformed_es <- data_maxlong |>
+  mutate(pos_es = case_when(
+    plot_effect_size_ >= 0.8 | plot_effect_size <= -0.8 ~ "71.4",
+    plot_effect_size_ >= 0.5 | plot_effect_size <= -0.5 ~ "63.8",
+    plot_effect_size_ >= 0.2 | plot_effect_size <= -0.2 ~ "55.6",
+    TRUE ~ "Attention: Error in Code"  
+  ))
+
+
+# Extract columns that start with "plot_accuracy" and "plot_effect_size"
+plot_accuracy_columns <- data |>select(starts_with("plot_accuracy"))
+plot_effect_size_columns <- data |> select(starts_with("plot_effect_size"))
+
+# Combine all plot_accuracy and plot_effect_size data into single vectors
+plot_accuracy <- unlist(plot_accuracy_columns, use.names = FALSE)
+plot_effect_size <- unlist(plot_effect_size_columns, use.names = FALSE)
+
+# Compute Pearson's r correlation
+correlation_result <- cor(plot_accuracy, plot_effect_size, method = "pearson")
+
+# Print the result
+print(correlation_result)
+
+
+
+```
+
+
+2: How informative are graphically and textually presented effect sizes?
+
 ```{r}
 
 overall_mean_informativity_plot <- data_maxlong |>  filter(str_detect(variable, "^plot_perceived_informativity_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
@@ -146,5 +232,22 @@ ggplot(summary_data, aes(x = Mean_Value, y = Variable, fill = Variable)) + geom_
 
 ```
 
+3: How difficult to understand are graphically and textually presented effect sizes?
+
+```{r}
+
+overall_mean_difficulty_plot <- data_maxlong |>  filter(str_detect(variable, "^plot_perceived_difficulty_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
+
+overall_mean_difficulty_text <- data_maxlong |>  filter(str_detect(variable, "^text_perceived_difficulty_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
+
+# Create a data frame with the summary statistics
+
+summary_data_difficulty <- data.frame( Variable = c("Plot Difficulty", "Text Difficulty"), Mean_Value = c( overall_mean_difficulty_plot$mean_value,  overall_mean_difficulty_text$mean_value ) )
+
+# Create a horizontal bar plot with values on the x-axis
+
+ggplot(summary_data_difficulty, aes(x = Mean_Value, y = Variable, fill = Variable)) + geom_bar(stat = "identity") + labs(title = "Average Values", x = "Perceived Difficulty") + theme_minimal() + theme(axis.text.y = element_text(hjust = 0))
+
+```
 
 Concerning Research Question 2
