@@ -6,6 +6,8 @@ format:
     toc: true
     theme: flatly
     fontsize: .8em
+editor_options: 
+  chunk_output_type: console
 ---
 
 ## Import of the already cleaned data
@@ -14,6 +16,10 @@ format:
 library(tidyverse)
 library(GGally)
 library(skimr)
+library(lubridate)
+library(hrbrthemes)
+library(effectsize)
+library(brms)
 
 data_pilot01 <- 
   read_delim("Data/TextViz.csv", delim = ";")|> 
@@ -48,6 +54,7 @@ data_pilot01  |>
   ggplot(aes(survey_duration)) +
   geom_histogram() +
   theme_minimal()
+
 ```
 
 ## Results of Attention and Comprehension checks
@@ -100,9 +107,9 @@ data_maxlong <-
                                  str_detect(variable, "effect_size") ~ "effect_size",
                                  str_detect(variable, "informativity") ~ "informativity",
                                  str_detect(variable, "relevance") ~ "relevance",
-                                 str_detect(variable, "informativity") ~ "informativity",
+                                 #str_detect(variable, "informativity") ~ "informativity", # nicht nötig, oder? 
                                  str_detect(variable, "difficulty") ~ "difficulty",
-                                 str_detect(variable, "informativity") ~ "informativity",
+                                 #str_detect(variable, "informativity") ~ "informativity", # nicht nötig, oder? 
                                  T ~ "Attention: Error in Code"))
 
 data_long <- 
@@ -135,119 +142,225 @@ Concerning Research Question 1, part
 
 : Correlation between effect_size and probability of superiority
 
+
+# Descriptive Analyses - always plot your raw data 
+# All dependent variables per experimental condition
+
 ```{r}
 # reminder to myself: AltGr + greater symbol = pipe operator
-# not yet finished, tbd
+
+# Probability of superiority ratings per condition 
+data_long |> 
+    ggplot(aes(effect_size, probability_of_sup, color = as.factor(stimulus_type))) +
+    geom_jitter() +
+    stat_smooth() +
+    labs(color="Stimulus") +
+    theme_modern_rc()
 
 
-# Optional: Reshape the data back to wide format if necessary
-wide_data <- data_maxlong %>%
-  pivot_wider(
-    names_from = variable.names("plot_accuracy_1"),
-    values_from = value
-  )
+# we have to transform cohen's d to probability of superiority to get accuracy 
+
+data_long <- 
+  data_long |> 
+  mutate(effect_size_pos = d_to_p_superiority(effect_size), # we recognized that our stimulus is the other way around, that's why we have to recode the effect sizes variable
+         effect_size_pos = 1-(effect_size_pos),
+         effect_size_pos = 100*(effect_size_pos),
+         probability_of_sup_diff = probability_of_sup - effect_size_pos) 
 
 
-# Reshape the data to long format
-long_data <- data %>%
-  pivot_longer(
-    cols = starts_with("plot_effect_size_"),
-    names_to = "effect_size_variable",
-    values_to = "effect_size_value"
-  )
-
-# Apply case_when() to the new effect_size_value column
-long_data <- long_data %>%
-  mutate(
-    new_variable = case_when(
-      effect_size_value >= 0.9 | effect_size_value <= -0.9 ~ "ValueFor±0.9",
-      effect_size_value >= 0.5 | effect_size_value <= -0.5 ~ "ValueFor±0.5",
-      effect_size_value >= 0.2 | effect_size_value <= -0.2 ~ "ValueFor±0.2",
-      TRUE ~ "Default"
-    )
-  )
+# accuracy per condition
+data_long |> 
+    ggplot(aes(effect_size, probability_of_sup_diff, color = as.factor(stimulus_type))) +
+    geom_jitter() +
+    stat_smooth() +
+    labs(color="Stimulus") +
+    facet_wrap(~stimulus_type) +
+    theme_modern_rc()
 
 
+# difficulty per condition
+data_long |> 
+    ggplot(aes(stimulus_type, difficulty)) +
+    geom_jitter() +
+    stat_summary(fun.data ="mean_sdl", color = "white") +
+    theme_modern_rc()
 
-selected_rows <- data_maxlong |>
-  select(-session,-stimulus_type,-nth_stimulus_per_type,-measurement) |>
-  filter(variable %in% c("plot_accuracy_1", "plot_accuracy_2", "plot_accuracy_3","plot_accuracy_4","plot_accuracy_5","plot_accuracy_6", "plot_effect_size_1", "plot_effect_size_2", "plot_effect_size_3", "plot_effect_size_4", "plot_effect_size_5", "plot_effect_size_6"))
+# informativity per condition
+data_long |> 
+    ggplot(aes(stimulus_type, informativity)) +
+    geom_jitter() +
+    stat_summary(fun.data ="mean_sdl", color = "white") +
+    theme_modern_rc()
 
-# Create a new column "new_column" based on a condition
+# relevance per condition
+data_long |> 
+    ggplot(aes(stimulus_type, relevance)) +
+    geom_jitter() +
+   #stat_summary(fun.data ="mean_sdl", color = "white") +
+    theme_modern_rc()
 
-love_r <- selected_rows %>%
-  mutate(effect_size = ifelse(variable %in% c("plot_effect_size_1", "plot_effect_size_2", "plot_effect_size_3","plot_effect_size_4", "plot_effect_size_5", "plot_effect_size_6"), value, NA)) |>
-  select(-starts_with("plot_effect_size_"))
+# it seems like some participants have always used the same number 
+# thats why we plot relevance per condition and person
+data_long |> 
+    ggplot(aes(stimulus_type, relevance, color=session)) +
+    geom_jitter() +
+   # stat_summary(fun.data ="mean_sdl", color = "white") +
+    theme_modern_rc()
 
+# to better interpret relevance: we have used log()
+data_long |> 
+    ggplot(aes(stimulus_type, log(relevance), color=session)) +
+    geom_jitter() +
+   # stat_summary(fun.data ="mean_sdl", color = "white") +
+    theme_modern_rc()
 
+# to better interpret relevance: we have used log()
+data_long |> 
+    ggplot(aes(stimulus_type, log(relevance))) +
+    geom_jitter() +
+    #stat_summary(fun.data ="mean_sdl", color = "white") +
+    theme_modern_rc()
 
-correlation_accuracy <- data_maxlong |>
-  select(starts_with("plot_accuracy_"))
-
-print(correlation_accuracy)
-
-transformed_es <- data_maxlong |>
-  mutate(pos_es = case_when(
-    plot_effect_size_ >= 0.8 | plot_effect_size <= -0.8 ~ "71.4",
-    plot_effect_size_ >= 0.5 | plot_effect_size <= -0.5 ~ "63.8",
-    plot_effect_size_ >= 0.2 | plot_effect_size <= -0.2 ~ "55.6",
-    TRUE ~ "Attention: Error in Code"  
-  ))
-
-
-# Extract columns that start with "plot_accuracy" and "plot_effect_size"
-plot_accuracy_columns <- data |>select(starts_with("plot_accuracy"))
-plot_effect_size_columns <- data |> select(starts_with("plot_effect_size"))
-
-# Combine all plot_accuracy and plot_effect_size data into single vectors
-plot_accuracy <- unlist(plot_accuracy_columns, use.names = FALSE)
-plot_effect_size <- unlist(plot_effect_size_columns, use.names = FALSE)
-
-# Compute Pearson's r correlation
-correlation_result <- cor(plot_accuracy, plot_effect_size, method = "pearson")
-
-# Print the result
-print(correlation_result)
-
-
+# relevance per effect size and condition
+data_long |> 
+    ggplot(aes(effect_size, relevance, color=stimulus_type)) +
+    geom_jitter() +
+    labs(color="Stimulus") +
+    theme_modern_rc()
 
 ```
+Comment: relevance seems to be difficult - some people have no variance in their estimates and there is no clear pattern in the data
 
 
-2: How informative are graphically and textually presented effect sizes?
 
 ```{r}
-
-overall_mean_informativity_plot <- data_maxlong |>  filter(str_detect(variable, "^plot_perceived_informativity_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
-
-overall_mean_informativity_text <- data_maxlong |>  filter(str_detect(variable, "^text_perceived_informativity_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
-
-# Create a data frame with the summary statistics
-
-summary_data <- data.frame( Variable = c("Plot Informativity", "Text Informativity"), Mean_Value = c( overall_mean_informativity_plot$mean_value,  overall_mean_informativity_text$mean_value ) )
-
-# Create a horizontal bar plot with values on the x-axis
-
-ggplot(summary_data, aes(x = Mean_Value, y = Variable, fill = Variable)) + geom_bar(stat = "identity") + labs(title = "Mean Values by Variable and Aspect", x = "Mean Value") + theme_minimal() + theme(axis.text.y = element_text(hjust = 0))
-
+data_long |> 
+    group_by(stimulus_type) |> 
+    do(tau_accuracy = unlist(cor(.$effect_size_pos, .$probability_of_sup, method = "kendall", 
+                           use = "pairwise.complete"))) %>% 
+    unnest(tau_accuracy)
 ```
 
-3: How difficult to understand are graphically and textually presented effect sizes?
+
+# Concerning Research Question 1
+wir vermuten, dass hier etwas nicht stimmt
+```{r}
+mod0_accuracy <- brm(probability_of_sup_diff ~ + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod1_accuracy <- brm(probability_of_sup_diff ~ effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod2_accuracy <- brm(probability_of_sup_diff ~ stimulus_type + effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+pp_check(mod2_accuracy)
+
+sjPlot::tab_model(mod0_accuracy, mod1_accuracy, mod2_accuracy)
+
+bayes_factor(mod1_accuracy, mod0_accuracy)
+
+bayes_factor(mod2_accuracy, mod1_accuracy)
+```
+
 
 ```{r}
+mod0_difficulty <- brm(scale(difficulty) ~ + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
 
-overall_mean_difficulty_plot <- data_maxlong |>  filter(str_detect(variable, "^plot_perceived_difficulty_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
+mod1_difficulty <- brm(scale(difficulty) ~ effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
 
-overall_mean_difficulty_text <- data_maxlong |>  filter(str_detect(variable, "^text_perceived_difficulty_")) |>  summarize(mean_value = mean(value, na.rm = TRUE))
+mod2_difficulty <- brm(scale(difficulty) ~ stimulus_type + effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
 
-# Create a data frame with the summary statistics
+plot(mod2_difficulty)
+pp_check(mod2_difficulty)
 
-summary_data_difficulty <- data.frame( Variable = c("Plot Difficulty", "Text Difficulty"), Mean_Value = c( overall_mean_difficulty_plot$mean_value,  overall_mean_difficulty_text$mean_value ) )
+sjPlot::tab_model(mod0_difficulty, mod1_difficulty, mod2_difficulty)
 
-# Create a horizontal bar plot with values on the x-axis
+bayes_factor(mod1_difficulty, mod0_difficulty)
 
-ggplot(summary_data_difficulty, aes(x = Mean_Value, y = Variable, fill = Variable)) + geom_bar(stat = "identity") + labs(title = "Average Values", x = "Perceived Difficulty") + theme_minimal() + theme(axis.text.y = element_text(hjust = 0))
+bayes_factor(mod2_difficulty, mod1_difficulty)
 
 ```
 
-Concerning Research Question 2
+
+```{r}
+mod0_informativity <- brm(scale(informativity) ~ + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod1_informativity <- brm(scale(informativity) ~ effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod2_informativity <- brm(scale(informativity) ~ stimulus_type + effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+plot(mod2_informativity)
+pp_check(mod2_informativity)
+
+sjPlot::tab_model(mod0_informativity, mod1_informativity, mod2_informativity)
+
+bayes_factor(mod1_informativity, mod0_informativity)
+
+bayes_factor(mod2_informativity, mod1_informativity)
+
+```
+
+
+# auch hier scheint etwas nicht zu stimmen: Modell nicht passend? viele 0er
+```{r}
+mod0_relevance <- brm(relevance ~ + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod1_relevance <- brm(relevance ~ effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod2_relevance <- brm(relevance ~ stimulus_type + effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+sjPlot::tab_model(mod0_relevance, mod1_relevance, mod2_relevance)
+
+plot(mod2_relevance)
+pp_check(mod2_relevance)
+
+bayes_factor(mod1_relevance, mod0_relevance)
+
+bayes_factor(mod2_relevance, mod1_relevance)
+```
