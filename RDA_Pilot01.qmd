@@ -65,7 +65,7 @@ It is important to know that `effect_size1` to `effect_size6` encode the true ef
 First we have to wrangle a table like this
 
 | session | stimulus_type | stimulus_number | true_effectsize | first_stim | perceived_diff | perceived_PS | perceived_inf | perceived_rel |
-|--------|--------|--------|--------|--------|--------|--------|--------|--------|
+|---------|---------------|-----------------|-----------------|------------|----------------|--------------|---------------|---------------|
 | a       | plot          | 1               | .8              | plot_first |                |              |               |               |
 | b       | text          | 1               | .2              | text_first |                |              |               |               |
 | c       | plot          | 1               | -.5             | plot_first |                |              |               |               |
