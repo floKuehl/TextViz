@@ -190,11 +190,6 @@ hypothesis(mod1_informativity, "stimulus_typetext > 0")
 
 #### Effect size 
 ```{r}
-
-data_maxlong |>
-  pivot_wider()
-  
-
 cliffs_delta(informativity ~ stimulus_type, data = data_long)
 ```
 
@@ -255,10 +250,7 @@ hypothesis(mod2_overunderrating, "exp(sigma_Intercept) - exp(sigma_Intercept + s
 
 #### Effect size 
 ```{r}
-data_cliffs <- data_long |>
-  mutate(stimulus_type = as.factor(stimulus_type))
-
-cliffs_delta(stimulus_type ~ overunderrating, data = data_cliffs)
+cliffs_delta(overunderrating ~ stimulus_type, data = data_long)
 ```
 
 
@@ -292,7 +284,7 @@ testmod
 #### Effect Size
 
 ```{r}
-
+cliffs_delta(difficulty ~ stimulus_type, data = data_long)
 ```
 
 ### Relevance
@@ -458,6 +450,7 @@ Comment: stimulus type nicht berücksichtig, gewählte Variante vermutlich nicht
 #### Effect Size 
 
 ```{r}
-
+cliffs_delta(relevance ~ stimulus_type, data = data_long)
+#kendalls tau berechnen
 ```
 
