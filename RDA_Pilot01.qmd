@@ -22,6 +22,7 @@ library(hrbrthemes)
 library(effectsize)
 library(brms)
 library(ggforce)
+options(mc.cores=parallel::detectCores ())
 
 data_pilot01 <- 
   read_delim("Data/TextViz.csv", delim = ";")|> 
@@ -262,22 +263,47 @@ cliffs_delta(overunderrating ~ stimulus_type, data = data_long)
 data_long |>
   ggplot(aes(stimulus_type, difficulty)) +
   geom_violin() +
-  geom_sina(aes(color = session)) +
+  geom_sina() +
   stat_summary(
     fun.data = "mean_sdl",
     fun.args = list(mult = 1)
   ) + 
   theme_minimal() +
   theme(legend.position = "none")
-
-testmod
-
 ```
 
 #### Model
-
 ```{r}
+mod1_difficulty <-
+  brm(
+    difficulty ~ stimulus_type + (1|session),
+    family = mixture(gaussian, gaussian),
+    data = data_long,
+    init = 0,
+    iter = 20000,
+    prior = c(
+      prior(normal(2, 1), Intercept, dpar = mu1),
+      prior(normal(6, 1), Intercept, dpar = mu2)
+    )
+  )
 
+summary(mod1_difficulty)
+pp_check(mod1_difficulty)
+hypothesis(mod1_difficulty, "mu1_Intercept < mu2_Intercept")
+hypothesis(mod1_difficulty, "mu1_Intercept*theta1 + mu1_stimulus_typetext*theta2 < mu2_Intercept**theta1 + mu2_stimulus_typetext*theta2")
+
+
+mod2_difficulty <-
+  brm(
+    difficulty ~ stimulus_type + (1|session),
+    family = cumulative(),
+    data = data_long,
+    init = 0
+  )
+
+summary(mod2_difficulty)
+pp_check(mod2_difficulty)
+hypothesis(mod2_difficulty, "stimulus_typetext > 0")
 ```
 
 
@@ -285,6 +311,7 @@ testmod
 
 ```{r}
 cliffs_delta(difficulty ~ stimulus_type, data = data_long)
+effectsize::rank_biserial(difficulty ~ stimulus_type, data = data_long)
 ```
 
 ### Relevance
@@ -378,71 +405,19 @@ data_long |>
 #### Model 
 
 ```{r}
-
-mod1_relevance_pstand <- brm(relevance_pstand ~ relevance_obj + (1|session), 
-                          data = data_long,
-                          iter = 40000,
-                          cores = 4)
-
-summary(mod1_relevance_pstand)
-pp_check(mod1_relevance_pstand)
-
-
-## stimulus type: text
-
-data_long |> 
-  filter(stimulus_type == "text") |>
-  ggplot(aes(relevance_obj, relevance_pstand)) + 
-  geom_jitter() +
-  stat_smooth() +
-  theme_minimal()
-
-mod1_relevance_pstandtext <- brm(relevance_pstand ~ relevance_obj + (1|session), 
-                          data = data_long |> 
-                            filter(stimulus_type == "text"),
-                          iter = 40000,
-                          cores = 4)
-
-summary(mod1_relevance_pstandtext)
-pp_check(mod1_relevance_pstandtext)
-
-## stimulus type: plot
-
-data_long |> 
-  filter(stimulus_type == "plot") |>
-  ggplot(aes(relevance_obj, relevance_pstand)) + 
-  geom_jitter() +
-  stat_smooth() +
-  theme_minimal()
-
-mod1_relevance_pstandplot <- brm(relevance_pstand ~ relevance_obj* + (1|session), 
-                          data = data_long |> 
-                            filter(stimulus_type == "plot"),
-                          iter = 40000,
-                          cores = 4)
-
-summary(mod1_relevance_pstandplot)
-pp_check(mod1_relevance_pstandplot)
-
-
-
-
-hypothesis(mod1_relevance_pstand, "relevance_obj > 0")
-
-
-mod2_relevance_pstandplot <-
+mod1_relevance_pstandplot <-
   brm(
     relevance_pstand ~ relevance_obj + 
                        stimulus_type + 
                        stimulus_type:relevance_obj + 
                        (1 | session),
     data = data_long,
-    #iter = 40000,
     cores = 4
   )
 
-summary(mod2_relevance_pstandplot)
-pp_check(mod2_relevance_pstandplot)
+summary(mod1_relevance_pstandplot)
+pp_check(mod1_relevance_pstandplot)
+
 ```
 
 Comment: stimulus type nicht berücksichtig, gewählte Variante vermutlich nicht sinnvoll. Was wäre hier eine sinnige Hypothese
