@@ -242,19 +242,15 @@ mod2_overunderrating <-
        sigma ~ stimulus_type + (1|session)),
     data = data_long |>
       filter(!overunderrating == "-Inf"),
-    iter = 40000,
     cores = 4
   )
 
+plot(mod2_overunderrating)
 summary(mod2_overunderrating)
 pp_check(mod2_overunderrating)
 hypothesis(mod2_overunderrating, "Intercept < 0")
 hypothesis(mod2_overunderrating, "stimulus_typetext < 0")
-
-
-
-# sjPlot::tab_model(mod0_informativity, mod1_informativity, mod2_informativity)
-
+hypothesis(mod2_overunderrating, "exp(sigma_Intercept) - exp(sigma_Intercept + sigma_stimulus_typetext) < 0")
 ```
 
 #### Effect size 
@@ -369,6 +365,12 @@ data_long |>
   geom_jitter() +
   stat_smooth() +
   theme_minimal()
+
+data_long |> 
+  ggplot(aes(relevance_obj, relevance_pstand, color = stimulus_type)) + 
+  geom_jitter() +
+  stat_smooth() +
+  theme_minimal()
 ```
 
 Comment: relevance seems to be difficult - some people have no variance in their estimates and there is no clear pattern in the data
@@ -421,7 +423,7 @@ data_long |>
   stat_smooth() +
   theme_minimal()
 
-mod1_relevance_pstandplot <- brm(relevance_pstand ~ relevance_obj + (1|session), 
+mod1_relevance_pstandplot <- brm(relevance_pstand ~ relevance_obj* + (1|session), 
                           data = data_long |> 
                             filter(stimulus_type == "plot"),
                           iter = 40000,
@@ -434,6 +436,21 @@ pp_check(mod1_relevance_pstandplot)
 
 
 hypothesis(mod1_relevance_pstand, "relevance_obj > 0")
+
+
+mod2_relevance_pstandplot <-
+  brm(
+    relevance_pstand ~ relevance_obj + 
+                       stimulus_type + 
+                       stimulus_type:relevance_obj + 
+                       (1 | session),
+    data = data_long,
+    #iter = 40000,
+    cores = 4
+  )
+
+summary(mod2_relevance_pstandplot)
+pp_check(mod2_relevance_pstandplot)
 ```
 
 Comment: stimulus type nicht berücksichtig, gewählte Variante vermutlich nicht sinnvoll. Was wäre hier eine sinnige Hypothese
