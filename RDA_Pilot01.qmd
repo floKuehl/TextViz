@@ -128,25 +128,9 @@ RQ 1: How accurate (dependent variable 1), informative (dependent variable 2), d
 
 RQ 2: Are there any (significant) differences between the two modes (graph vs. text) in relation to the four dependent variables?
 
-## Statistical Analyses
-
-Concerning Research Question 1, part
-
-1: First step: we need to transform the variable `effect size`, which is computed as Cohen's d values, into the Common Language Effect Size (CLES) Probability of Superiority. Afterward, we can calculate a Pearson's r correlation. We need a table like this:
-
-| effect_size_true | pos_effect_size_true | probability of superiority (measurement) |
-|------------------|-------------------|-----------------------------------|
-| +- 0.8           | 71.4                 | ...                                      |
-| +- 0.5           | 63.8                 | ...                                      |
-| +- 0.2           | 55.6                 | ...                                      |
-
-: Correlation between effect_size and probability of superiority
-
 ## Transformation of accuracy variable
 
 ```{r}
-# reminder to myself: AltGr + greater symbol = pipe operator
-
 
 data_long <- 
   data_long |> 
@@ -206,7 +190,12 @@ hypothesis(mod1_informativity, "stimulus_typetext > 0")
 
 #### Effect size 
 ```{r}
-cliffs_delta(data_long$stimulus_type, data_long$informativity)
+
+data_maxlong |>
+  pivot_wider()
+  
+
+cliffs_delta(informativity ~ stimulus_type, data = data_long)
 ```
 
 
