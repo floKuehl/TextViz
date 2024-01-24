@@ -222,24 +222,36 @@ data_long |>
 #### Model
 
 ```{r}
-mod0_overunderrating <- brm(overunderrating ~ + (1|session), 
-                          data = data_long,
-                          cores = 4)
-
-# Error: Exception: normal_id_glm_lpdf: Vector of dependent variables[159] is -inf, but must be finite!  (in 'model14bf34ad92f8_6f14f045693eab537b22cadd2fdca599' at line 53)
-data_overunderrating <- data_long |>
-  filter(!overunderrating == "-Inf")
-
-mod1_overunderrating <- brm(overunderrating ~ stimulus_type + (1|session), 
-                          data = data_overunderrating,
-                          iter = 40000,
-                          cores = 4)
-
+mod1_overunderrating <-
+  brm(
+    overunderrating ~ stimulus_type + (1 | session),
+    data = data_long |>
+      filter(!overunderrating == "-Inf"),
+    iter = 40000,
+    cores = 4
+  )
 
 summary(mod1_overunderrating)
 pp_check(mod1_overunderrating)
 hypothesis(mod1_overunderrating, "Intercept < 0")
 hypothesis(mod1_overunderrating, "stimulus_typetext < 0")
+
+mod2_overunderrating <-
+  brm(
+    bf(overunderrating ~ stimulus_type + (1 | session),
+       sigma ~ stimulus_type + (1|session)),
+    data = data_long |>
+      filter(!overunderrating == "-Inf"),
+    iter = 40000,
+    cores = 4
+  )
+
+summary(mod2_overunderrating)
+pp_check(mod2_overunderrating)
+hypothesis(mod2_overunderrating, "Intercept < 0")
+hypothesis(mod2_overunderrating, "stimulus_typetext < 0")
+
+
 
 # sjPlot::tab_model(mod0_informativity, mod1_informativity, mod2_informativity)
 
