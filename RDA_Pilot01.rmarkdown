@@ -11,7 +11,9 @@ editor_options:
 lightbox: true  
 ---
 
+
 ## Import of the already cleaned data
+
 
 ```{r}
 library(tidyverse)
@@ -47,9 +49,11 @@ glimpse(data_pilot01)
 skimr::skim(data_pilot01)
 ```
 
+
 ## Participant Behaviour
 
 ### Survey Duration
+
 
 ```{r}
 data_pilot01  |> 
@@ -59,7 +63,9 @@ data_pilot01  |>
 
 ```
 
+
 ## Results of Attention and Comprehension checks
+
 
 ```{r}
 data_pilot01 |> 
@@ -67,6 +73,7 @@ data_pilot01 |>
          check_graph2, check_test, check_text2) |> 
   skim()
 ```
+
 
 ## Data Wrangling Wide to Long Format
 
@@ -81,6 +88,7 @@ First we have to wrangle a table like this:
 | c       | plot          | 1               | -.5             | plot_first |                |              |               |               |
 
 The variable `first_stim` is only reconstuctable by the time stamps. So let's wrangle the first four columns:
+
 
 ```{r}
 data_maxlong <- 
@@ -122,6 +130,7 @@ data_long <-
 skim(data_long)  
 ```
 
+
 ## Research Questions
 
 RQ 1: How accurate (dependent variable 1), informative (dependent variable 2), difficult to understand / efficient (dependent variable 3) and relevant (dependent variable 4) are graphically and textually presented effect sizes perceived by teachers?
@@ -135,14 +144,17 @@ Concerning Research Question 1, part
 1: First step: we need to transform the variable `effect size`, which is computed as Cohen's d values, into the Common Language Effect Size (CLES) Probability of Superiority. Afterward, we can calculate a Pearson's r correlation. We need a table like this:
 
 | effect_size_true | pos_effect_size_true | probability of superiority (measurement) |
-|------------------|-------------------|-----------------------------------|
+|------------------|-------------------|------------------------------------|
 | +- 0.8           | 71.4                 | ...                                      |
 | +- 0.5           | 63.8                 | ...                                      |
 | +- 0.2           | 55.6                 | ...                                      |
 
 : Correlation between effect_size and probability of superiority
 
-## Transformation of accuracy variable
+
+
+## Plot all dependent variables per experimental condition
+### Transformation of accuracy variable
 
 ```{r}
 # reminder to myself: AltGr + greater symbol = pipe operator
@@ -160,60 +172,13 @@ data_long <-
          rating_in_d = sqrt(2)*qnorm(probability_of_sup/100),
          overunderrating = ifelse(effect_size < 0, 
                                   (rating_in_d - effect_size)*(-1), # () für Flo
-                                  rating_in_d - effect_size),
-         relevance_obj = case_when(effect_size > 0 ~ 0,
-                                   T ~ abs(effect_size))) |> 
+                                  rating_in_d - effect_size)) |> 
   # person specific standadization of relevance
   group_by(session) |> 
   mutate(relevance_pstand = (relevance - mean(relevance, na.rm = T))/
            sd(relevance, na.rm = T)) |> 
   ungroup()
 ```
-
-## Analysis per dependent variables
-### Informativity
-#### Plot
-
-```{r}
-data_long |>
-  ggplot(aes(stimulus_type, informativity)) +
-  geom_violin() +
-  geom_sina() +
-  stat_summary(fun.data = "mean_sdl",
-               fun.args = list(mult = 1)) +
-  theme_minimal() +
-  theme(legend.position = "none")
-```
-
-#### Model
-```{r}
-mod0_informativity <- brm(informativity ~ + (1|session), 
-                          data = data_long,
-                          cores = 4)
-
-mod1_informativity <- brm(informativity ~ stimulus_type + (1|session), 
-                          data = data_long,
-                          iter = 40000,
-                          cores = 4)
-
-mod2_informativity <- brm(informativity ~ stimulus_type + effect_size + (1|session), 
-                          data = data_long,
-                          iter = 40000,
-                          cores = 4)
-
-summary(mod1_informativity)
-hypothesis(mod1_informativity, "stimulus_typetext > 0")
-
-plot(mod2_informativity)
-pp_check(mod2_informativity)
-
-sjPlot::tab_model(mod0_informativity, mod1_informativity, mod2_informativity)
-
-
-
-```
-
-
 
 
 ### Plot of the over/underatings
@@ -233,22 +198,34 @@ data_long |>
   facet_wrap(~stimulus_type)
 ```
 
+
 ### Plot difficulty per condition
 
 ```{r}
 data_long |>
   ggplot(aes(stimulus_type, difficulty)) +
   geom_violin() +
-  geom_sina(aes(color = session)) +
+  geom_sina() +
   stat_summary(
     fun.data = "mean_sdl",
     fun.args = list(mult = 1)
   ) + 
-  theme_minimal() +
-  theme(legend.position = "none")
+  theme_minimal()
 
-testmod
 
+```
+
+
+### Plot informativity per condition
+
+```{r}
+data_long |>
+  ggplot(aes(stimulus_type, informativity)) +
+  geom_violin() +
+  geom_sina() +
+  stat_summary(fun.data = "mean_sdl",
+               fun.args = list(mult = 1)) +
+  theme_minimal()
 ```
 
 
@@ -272,6 +249,7 @@ data_long |>
   theme(legend.position = "none")
 ```
 
+
 ### Plot Log Relevance per condition
 
 ```{r}
@@ -287,20 +265,6 @@ data_long |>
   theme(legend.position = "none")
 ```
 
-### Plot Relevance per nth-stimulus
-
-```{r}
-data_long |> 
-  ggplot(aes(nth_stimulus_per_type, 
-             log(relevance +1), 
-             color = session,
-             group = session)) +
-  geom_point(aes(size = relevance_obj)) +
-  geom_line() +
-  facet_wrap(~ stimulus_type) +
-  theme_minimal() +
-  theme(legend.position = "none")
-```
 
 ### Plot Personwise standadized relevanve per true effect size
 
@@ -315,14 +279,21 @@ data_long |>
   geom_hline(yintercept = 0, color = "#8cd000") +
   theme_minimal()
 
-data_long |> 
-  ggplot(aes(relevance_obj, relevance_pstand)) + 
-  geom_jitter() +
-  stat_smooth() +
+data_long |>
+  ggplot(aes(effect_size, 
+             relevance_pstand)) +
+  geom_jitter(alpha = .6, width = .1) +
+  stat_summary(fun.data = "mean_sdl",
+               fun.args = list(mult = 1)) +
+  facet_wrap(~stimulus_type) + 
+  geom_hline(yintercept = 0, color = "#8cd000") +
   theme_minimal()
 ```
 
+
+
 Comment: relevance seems to be difficult - some people have no variance in their estimates and there is no clear pattern in the data
+
 
 ```{r}
 data_long |> 
@@ -332,8 +303,10 @@ data_long |>
     unnest(tau_accuracy)
 ```
 
-## Model all dependent variables
 
+# Concerning Research Question 1
+
+wir vermuten, dass hier etwas nicht stimmt
 
 
 ```{r}
@@ -367,7 +340,6 @@ bayes_factor(mod2_accuracy, mod1_accuracy)
 
 ```{r}
 #|eval: false
-options(mc.cores = parallel::detectCores())
 mod0_difficulty <- brm(scale(difficulty) ~ + (1|session), 
                           data = data_long,
                           iter = 20000,
@@ -380,26 +352,14 @@ mod1_difficulty <- brm(scale(difficulty) ~ effect_size_pos + (1|session),
                           save_pars = save_pars(all = TRUE),
                           cores = 4)
 
-mod2_difficulty <- brm(difficulty ~ stimulus_type + effect_size_pos + (1|session), 
+mod2_difficulty <- brm(scale(difficulty) ~ stimulus_type + effect_size_pos + (1|session), 
                           data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
                           cores = 4)
 
-mod2_difficulty_mix <-
-  brm(
-    difficulty ~ stimulus_type,
-    family = mixture(gaussian, gaussian),
-    data = data_long,
-    init = 0,
-    iter = 8000,
-    prior = c(
-      prior(normal(2, 1), Intercept, dpar = mu1),
-      prior(normal(6, 1), Intercept, dpar = mu2)
-    )
-  )
-
-summary(mod2_difficulty)
-plot(mod2_difficulty_mix)
-pp_check(mod2_difficulty_mix)
+plot(mod2_difficulty)
+pp_check(mod2_difficulty)
 
 sjPlot::tab_model(mod0_difficulty, mod1_difficulty, mod2_difficulty)
 
@@ -411,9 +371,38 @@ bayes_factor(mod2_difficulty, mod1_difficulty)
 
 ```{r}
 #|eval: false
+mod0_informativity <- brm(scale(informativity) ~ + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod1_informativity <- brm(scale(informativity) ~ effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+mod2_informativity <- brm(scale(informativity) ~ stimulus_type + effect_size_pos + (1|session), 
+                          data = data_long,
+                          iter = 20000,
+                          save_pars = save_pars(all = TRUE),
+                          cores = 4)
+
+plot(mod2_informativity)
+pp_check(mod2_informativity)
+
+sjPlot::tab_model(mod0_informativity, mod1_informativity, mod2_informativity)
+
+bayes_factor(mod1_informativity, mod0_informativity)
+
+bayes_factor(mod2_informativity, mod1_informativity)
+
 ```
 
-## auch hier scheint etwas nicht zu stimmen: Modell nicht passend? viele 0er
+
+# auch hier scheint etwas nicht zu stimmen: Modell nicht passend? viele 0er
+
 
 ```{r}
 #|eval: false
@@ -444,3 +433,4 @@ bayes_factor(mod1_relevance, mod0_relevance)
 
 bayes_factor(mod2_relevance, mod1_relevance)
 ```
+
