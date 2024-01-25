@@ -252,6 +252,8 @@ hypothesis(mod2_overunderrating, "exp(sigma_Intercept) - exp(sigma_Intercept + s
 #### Effect size 
 ```{r}
 cliffs_delta(overunderrating ~ stimulus_type, data = data_long)
+cohens_d(overunderrating ~ stimulus_type, data = data_long |> 
+           filter(!overunderrating == "-Inf"))
 ```
 
 
@@ -417,7 +419,7 @@ mod1_relevance_pstandplot <-
 
 summary(mod1_relevance_pstandplot)
 pp_check(mod1_relevance_pstandplot)
-
+hypothesis(mod1_relevance_pstandplot, "stimulus_typetext > 0")
 ```
 
 Comment: stimulus type nicht berücksichtig, gewählte Variante vermutlich nicht sinnvoll. Was wäre hier eine sinnige Hypothese
