@@ -1,6 +1,6 @@
 ---
 title: "Effsize Text vs. Viz - Pilot Study I"
-subtitle: "Reproducible Documentation of Analysis"
+subtitle: "Reproducible Documentation of Analysis (RDA)"
 format: 
   html:
     toc: true
@@ -143,7 +143,7 @@ data_long <-
          #probability_of_sup_diff = probability_of_sup - effect_size_pos,
          rating_in_d = sqrt(2)*qnorm(probability_of_sup/100),
          overunderrating = ifelse(effect_size < 0, 
-                                  (rating_in_d - effect_size)*(-1), # () für Flo
+                                  (rating_in_d - effect_size)*(-1), 
                                   rating_in_d - effect_size),
          relevance_obj = case_when(effect_size > 0 ~ 0,
                                    T ~ abs(effect_size))) |> 
@@ -194,9 +194,7 @@ hypothesis(mod1_informativity, "stimulus_typetext > 0")
 cliffs_delta(informativity ~ stimulus_type, data = data_long)
 ```
 
-
 ### Accuracy: Over/underatings
-
 #### Plot
 
 ```{r}
@@ -213,7 +211,6 @@ data_long |>
   geom_histogram() +
   facet_wrap(~stimulus_type)
 ```
-
 
 #### Model
 
@@ -256,9 +253,7 @@ cohens_d(overunderrating ~ stimulus_type, data = data_long |>
            filter(!overunderrating == "-Inf"))
 ```
 
-
 ### Difficulty
-
 #### Plot
 
 ```{r}
@@ -308,7 +303,6 @@ pp_check(mod2_difficulty)
 hypothesis(mod2_difficulty, "stimulus_typetext > 0")
 ```
 
-
 #### Effect Size
 
 ```{r}
@@ -327,7 +321,7 @@ data_long |>
     theme_minimal()
 
 # it seems like some participants have always used the same number 
-# thats why we plot relevance per condition and person
+# that is why we plot relevance per condition and person
 data_long |>
   ggplot(aes(stimulus_type, 
              relevance, 
@@ -368,7 +362,7 @@ data_long |>
   theme(legend.position = "none")
 ```
 
-##### Personwise standadized relevancee per true effect size
+##### Personwise standardized relevance per true effect size
 
 ```{r}
 data_long |>
@@ -394,16 +388,6 @@ data_long |>
   theme_minimal()
 ```
 
-Comment: relevance seems to be difficult - some people have no variance in their estimates and there is no clear pattern in the data
-
-```{r}
-data_long |> 
-    group_by(stimulus_type) |> 
-    do(tau_accuracy = unlist(cor(.$effect_sizes, .$probability_of_sup, method = "kendall", 
-                           use = "pairwise.complete"))) %>% 
-    unnest(tau_accuracy)
-```
-
 #### Model 
 
 ```{r}
@@ -422,12 +406,17 @@ pp_check(mod1_relevance_pstandplot)
 hypothesis(mod1_relevance_pstandplot, "stimulus_typetext > 0")
 ```
 
-Comment: stimulus type nicht berücksichtig, gewählte Variante vermutlich nicht sinnvoll. Was wäre hier eine sinnige Hypothese
 
 #### Effect Size 
 
 ```{r}
 cliffs_delta(relevance ~ stimulus_type, data = data_long)
 #kendalls tau berechnen
+
+data_long |> 
+    group_by(stimulus_type) |> 
+    do(tau_accuracy = unlist(cor(.$relevance_obj, .$relevance_pstand, method = "kendall", 
+                           use = "pairwise.complete"))) %>% 
+    unnest(tau_accuracy)
 ```
 
