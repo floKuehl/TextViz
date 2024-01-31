@@ -1,1 +1,1 @@
-Here you will be able to read everything which you need to know about the project
+This repo includes an RDA file and the raw data from the pilot study with the title <<communicating effect sizes - TextViz>>
